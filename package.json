@@ -5,8 +5,8 @@
   "main": "dist/jwt.js",
   "metapak": {
     "data": {
-      "files": "src/*.js",
-      "testsFiles": "src/*.test.js",
+      "files": "src/*.ts",
+      "testsFiles": "src/*.test.ts",
       "ignore": [
         "dist"
       ],
@@ -16,32 +16,28 @@
     },
     "configs": [
       "main",
-      "jsarch",
       "readme",
-      "eslint",
       "codeclimate",
-      "jest",
-      "babel",
-      "travis",
-      "jsdocs"
+      "travis"
     ]
   },
   "scripts": {
-    "architecture": "jsarch src/*.js > ARCHITECTURE.md && git add ARCHITECTURE.md",
+    "architecture": "jsarch src/*.ts > ARCHITECTURE.md && git add ARCHITECTURE.md",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "cli": "env NODE_ENV=${NODE_ENV:-cli}",
-    "compile": "babel src --out-dir=dist",
+    "compile": "babel --extensions '.ts,.js' src --out-dir=dist",
     "cover": "npm run jest -- --coverage",
     "coveralls": "npm run cover && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage",
     "cz": "env NODE_ENV=${NODE_ENV:-cli} git cz",
-    "doc": "echo \"# API\" > API.md; jsdoc2md src/*.js >> API.md && git add API.md",
+    "doc": "echo \"# API\" > API.md; jsdoc2md dist/**/*.js >> API.md && git add API.md",
     "jest": "NODE_ENV=test jest",
-    "lint": "eslint src/*.js",
+    "lint": "eslint src/*.ts",
     "metapak": "metapak",
-    "precz": "npm t && npm run lint && npm run architecture && npm run doc && npm run metapak -- -s",
-    "prettier": "prettier --write src/*.js",
-    "preversion": "npm run compile && npm t && npm run lint && npm run architecture && npm run doc && npm run metapak -- -s",
+    "precz": "npm run types && npm t && npm run lint && npm run architecture && npm run doc && npm run metapak -- -s",
+    "prettier": "prettier --write src/*.ts",
+    "preversion": "npm run types && npm run compile && npm t && npm run lint && npm run architecture && npm run doc && npm run metapak -- -s",
     "test": "npm run jest",
+    "types": "tsc --declaration --emitDeclarationOnly src/jwt.ts || echo; npm run prettier -- 'src/**/*.d.ts'",
     "version": "npm run changelog && git add CHANGELOG.md"
   },
   "repository": {
@@ -71,9 +67,14 @@
   "devDependencies": {
     "@babel/cli": "^7.2.3",
     "@babel/core": "^7.2.2",
+    "@babel/plugin-proposal-class-properties": "^7.2.3",
     "@babel/plugin-proposal-object-rest-spread": "^7.2.0",
     "@babel/preset-env": "^7.2.3",
+    "@babel/preset-typescript": "^7.1.0",
     "@babel/register": "^7.0.0",
+    "@types/jest": "^23.3.12",
+    "@types/jsonwebtoken": "^8.3.0",
+    "@types/ms": "^0.7.30",
     "babel-core": "^7.0.0-0",
     "babel-eslint": "^10.0.1",
     "babel-plugin-knifecycle": "^1.0.1",
@@ -84,11 +85,14 @@
     "eslint": "^5.12.0",
     "eslint-plugin-prettier": "^3.0.1",
     "jest": "^23.6.0",
-    "jsarch": "^2.0.0",
+    "jsarch": "2.0.1",
     "jsdoc-to-markdown": "^4.0.1",
     "metapak": "^2.0.0",
     "metapak-nfroidure": "9.0.5",
-    "prettier": "^1.15.3"
+    "prettier": "^1.15.3",
+    "ts-jest": "^23.10.5",
+    "typescript": "^3.2.2",
+    "typescript-eslint-parser": "^21.0.2"
   },
   "contributors": [],
   "engines": {
@@ -103,14 +107,7 @@
     "ignore": [
       "commitizen",
       "cz-conventional-changelog",
-      "conventional-changelog-cli",
-      "jsarch",
-      "eslint",
-      "eslint-config-prettier",
-      "prettier",
-      "jest",
-      "coveralls",
-      "jsdoc-to-markdown"
+      "conventional-changelog-cli"
     ]
   },
   "jest": {
@@ -119,10 +116,22 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/"
-    ]
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest",
+      "^.+\\.(js|jsx)?$": "babel-jest"
+    }
   },
   "babel": {
     "presets": [
+      "@babel/typescript",
       [
         "@babel/env",
         {
@@ -134,6 +143,7 @@
     ],
     "plugins": [
       "@babel/plugin-proposal-object-rest-spread",
+      "@babel/proposal-class-properties",
       "babel-plugin-knifecycle"
     ]
   },
@@ -145,6 +155,7 @@
   ],
   "eslintConfig": {
     "extends": "eslint:recommended",
+    "parser": "typescript-eslint-parser",
     "parserOptions": {
       "ecmaVersion": 2018,
       "sourceType": "module",
@@ -169,5 +180,12 @@
     "singleQuote": true,
     "trailingComma": "all",
     "proseWrap": "always"
+  },
+  "jsarch": {
+    "parserOptions": {
+      "plugins": [
+        "typescript"
+      ]
+    }
   }
 }

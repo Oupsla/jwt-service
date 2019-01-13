@@ -1,9 +1,42 @@
+// @ts-ignore: no type atm ¯\_(ツ)_/¯
 import { autoInject, service, name } from 'knifecycle';
+// @ts-ignore: no type atm  ¯\_(ツ)_/¯
 import YError from 'yerror';
 import ms from 'ms';
 import jwt from 'jsonwebtoken';
 
-const DEFAULT_ENV = {};
+const DEFAULT_ENV: JWT_ENV = {};
+
+interface JWT_CONFIG {
+  secret?: string;
+  duration: string;
+  tolerance?: string;
+  algorithms: Array<string>;
+}
+
+interface JWT_ENV {
+  JWT_SECRET?: string;
+}
+
+type Payload = {
+  [key: string]: any;
+};
+
+interface JWTService {
+  sign: (payload: Payload, algorithm?: string) => Promise<string>;
+  verify: (token: string) => Promise<Payload>;
+}
+
+interface JWTServiceDependencies {
+  ENV?: JWT_ENV;
+  JWT: JWT_CONFIG;
+  time?: () => number;
+  log?: (...args: Array<any>) => void;
+}
+
+interface JWTServiceInitializer {
+  (dependencies: JWTServiceDependencies): Promise<JWTService>;
+}
 
 /* Architecture Note #1: JWT service
 
@@ -19,7 +52,12 @@ It also uses `Knifecycle` for a drop in dependency injection
 Finally, it deal with promises which are more convenient than the
  original API.
 */
-export default name('jwt', service(autoInject(initJWT)));
+const wrappedInitializer: JWTServiceInitializer = name(
+  'jwt',
+  service(autoInject(initJWT)),
+);
+
+export default wrappedInitializer;
 
 /**
  * Instantiate the JWT service
@@ -54,7 +92,7 @@ async function initJWT({
   JWT,
   time = Date.now.bind(Date),
   log = noop,
-}) {
+}: JWTServiceDependencies): Promise<JWTService> {
   const JWT_DURATION = readMS(JWT.duration, 'E_BAD_JWT_DURATION');
   const JWT_TOLERANCE = readMS(JWT.tolerance, 'E_BAD_JWT_TOLERANCE', 0);
   const jwtSecret = ENV.JWT_SECRET || JWT.secret;
@@ -66,7 +104,7 @@ async function initJWT({
     throw new YError('E_NO_JWT_ALGORITHMS');
   }
 
-  const jwtService = {
+  const jwtService: JWTService = {
     sign,
     verify,
   };
@@ -80,7 +118,7 @@ async function initJWT({
    * @example
    * const token = await jwt.sign({ my: 'payload' });
    */
-  async function sign(payload, algorithm = JWT.algorithms[0]) {
+  async function sign(payload: object, algorithm: string = JWT.algorithms[0]) {
     const issuedAt = time();
     const expiresAt = issuedAt + JWT_DURATION;
     const validAt = issuedAt;
@@ -89,20 +127,19 @@ async function initJWT({
       throw new YError('E_UNKNOWN_ALGORYTHM', algorithm, JWT.algorithms);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<string>((resolve, reject) => {
       jwt.sign(
-        JSON.stringify(
-          Object.assign({}, payload, {
-            iat: Math.floor(issuedAt / 1000),
-            exp: Math.floor(expiresAt / 1000),
-            nbf: Math.floor(validAt / 1000),
-          }),
-        ),
+        JSON.stringify({
+          ...payload,
+          iat: Math.floor(issuedAt / 1000),
+          exp: Math.floor(expiresAt / 1000),
+          nbf: Math.floor(validAt / 1000),
+        }),
         jwtSecret,
         {
           algorithm,
         },
-        (err, token) => {
+        (err, token: string) => {
           if (err) {
             reject(YError.wrap(err, 'E_JWT', payload));
             return;
@@ -155,12 +192,17 @@ async function initJWT({
   return jwtService;
 }
 
-function noop() {}
+// eslint-disable-next-line
+function noop(...args: any[]): any {}
 
-function readMS(value, errorCode, defaultValue) {
+function readMS(
+  value: string,
+  errorCode: string,
+  defaultValue: number | undefined = undefined,
+) {
   const isRequired = 'undefined' === typeof defaultValue;
   const hasValue = 'undefined' !== typeof value;
-  const finalValue = hasValue ? value : defaultValue;
+  const finalValue = hasValue ? value : '' + defaultValue;
 
   if (isRequired && !hasValue) {
     throw new YError(errorCode, value);
